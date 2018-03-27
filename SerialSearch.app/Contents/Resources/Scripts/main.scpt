@@ -4,7 +4,7 @@ set tmpFiles to POSIX path of (path to temporary items)
 on getSerialsFromFile()
 	set AppleScript's text item delimiters to {":"}
 	tell application "Finder" to set containerPath to (container of (path to me))
-	set serialList to (POSIX path of (containerPath as alias)) & "List of serial numbers.txt"
+	set serialList to "/Users/elimadsen/github/Serial-Search/List of serial numbers.txt" --(POSIX path of (containerPath as alias)) & "List of serial numbers.txt" -- TEMP change this back
 	set listOfSerials to {}
 	try
 		set serialNumbers to paragraphs of (read serialList)
@@ -29,7 +29,7 @@ on getSerialsFromFile()
 	return listOfSerials
 end getSerialsFromFile
 
-on getYears(serialList)
+on getModelInfo(serialList)
 	set AppleScript's text item delimiters to {","}
 	set modelListData to ""
 	set serialCount to length of serialList
@@ -60,38 +60,51 @@ on getYears(serialList)
 			end if
 		end repeat
 		checkMactracker(configCode)
-		set modelListData to modelListData & serialNumber & ": " & configCode & return
+		set modNum to result
+		set modelListData to modelListData & serialNumber & ": " & configCode & ": " & modNum & return
 		set a to a + 1
 		set progress completed steps to a
 	end repeat
+	closeApp("Mactracker")
 	set progress total steps to 0
 	set progress completed steps to 0
 	set progress description to ""
 	set progress additional description to ""
+	log modelListData
 	return modelListData
-end getYears
+end getModelInfo
 
 on writeDataToFile(modelListData)
 	tell application "Finder" to set containerPath to (container of (path to me))
 	set modelList to (POSIX path of (containerPath as alias)) & "Results - " & (current date)
-	do shell script "echo  " & quoted form of modelListData & " >  " & quoted form of modelList & ";open " & quoted form of modelList
+	-- do shell script "echo  " & quoted form of modelListData & " >  " & quoted form of modelList & ";open " & quoted form of modelList -- TEMP uncomment this
 end writeDataToFile
 
 on checkMactracker(configCode)
 	tell application "Mactracker"
 		«event aevtopmw» given «class name»:configCode
 	end tell
+	set configCode to ((configCode as text)as string)
 	log configCode
-	--tell application "System Events"
-		--get name of window testtwo of application process "Mactracker"
-		--set test to result
-		--log test
-	--end tell=
-	-- TODO close window after collecting information
+	tell application "System Events"
+		--get name of table 1 of UI element 1 of scroll area 1 of window 1 of application process "Mactracker"
+		--get name of window configCode of application process "Mactracker"
+		get name of window "MacBook Pro (Retina, 15-inch, Late 2013)" of application process "Mactracker"
+		set test to result
+		log test
+		--TODO close window after done
+	end tell
 end checkMactracker
+
+on closeApp(applicationName)
+	set applicationName to quoted form of applicationName
+	if application applicationName is running then
+		close application applicationName
+	end if
+end closeApp
 
 set oldDelims to AppleScript's text item delimiters
 getSerialsFromFile()
-getYears(result)
+getModelInfo(result)
 writeDataToFile(result)
 set AppleScript's text item delimiters to oldDelims
