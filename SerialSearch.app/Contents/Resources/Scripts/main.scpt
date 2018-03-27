@@ -30,6 +30,7 @@ on getSerialsFromFile()
 end getSerialsFromFile
 
 on getModelInfo(serialList)
+	tell application "Mactracker" to «event aevtopmw»
 	set AppleScript's text item delimiters to {","}
 	set modelListData to ""
 	set serialCount to length of serialList
@@ -38,6 +39,7 @@ on getModelInfo(serialList)
 	set progress description to "Processing Serial Numbers..."
 	set progress additional description to "Preparing to process."
 	set a to 0
+	delay 1
 	repeat with serialNumber in serialList
 		set progress additional description to "Processing Serial " & a & " of " & serialCount
 		set AppleScript's text item delimiters to {"><"}
@@ -61,7 +63,7 @@ on getModelInfo(serialList)
 		end repeat
 		checkMactracker(configCode)
 		set modNum to result
-		set modelListData to modelListData & serialNumber & ": " & configCode & ": " & modNum & return
+		set modelListData to modelListData & serialNumber & ": " & modNum & ": " & configCode & return
 		set a to a + 1
 		set progress completed steps to a
 	end repeat
@@ -81,25 +83,25 @@ on writeDataToFile(modelListData)
 end writeDataToFile
 
 on checkMactracker(configCode)
-	tell application "Mactracker"
-		«event aevtopmw» given «class name»:configCode
-	end tell
+	tell application "Mactracker" to «event aevtopmw» given «class name»:configCode
 	set configCode to ((configCode as text)as string)
 	log configCode
 	tell application "System Events"
-		--get name of table 1 of UI element 1 of scroll area 1 of window 1 of application process "Mactracker"
+		set mactrackerRows to get value of attribute "AXChildren" of table 1 of UI element 1 of scroll area 1 of window "MacBook Pro (Retina, 15-inch, Late 2013)" of application process "Mactracker"
+		repeat with tmpRow in mactrackerRows
+
+		end repeat
 		--get name of window configCode of application process "Mactracker"
-		get name of window "MacBook Pro (Retina, 15-inch, Late 2013)" of application process "Mactracker"
-		set test to result
-		log test
+		--get name of window 1 of application process "Mactracker"
 		--TODO close window after done
+		return "-------Test"
 	end tell
 end checkMactracker
 
 on closeApp(applicationName)
 	set applicationName to quoted form of applicationName
 	if application applicationName is running then
-		close application applicationName
+		do shell script "pkill -x " & applicationName
 	end if
 end closeApp
 
