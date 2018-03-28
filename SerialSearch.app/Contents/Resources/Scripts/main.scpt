@@ -4,7 +4,7 @@ set tmpFiles to POSIX path of (path to temporary items)
 on getSerialsFromFile() -- IDEA get serial numbers from an excel document and write modelListData to the same excel document on writeDataToFile
 	set AppleScript's text item delimiters to {":"}
 	tell application "Finder" to set containerPath to (container of (path to me))
-	set serialList to "/Users/elimadsen/github/Serial-Search/List of serial numbers.txt" --(POSIX path of (containerPath as alias)) & "List of serial numbers.txt" -- TEMP change this back
+	set serialList to (POSIX path of (containerPath as alias)) & "List of serial numbers.txt"
 	set listOfSerials to {} -- needs to start by setting listOfSerials to blank
 	try
 		set serialNumbers to paragraphs of (read serialList) -- puts each serial number on its own line
@@ -39,7 +39,6 @@ on getModelInfo(serialList)
 	set progress description to "Processing Serial Numbers..."
 	set progress additional description to "Preparing to process."
 	set a to 0
-	delay 1 -- delaying to give Mactracker time to open
 	repeat with serialNumber in serialList
 		set progress additional description to "Processing Serial " & a & " of " & serialCount
 		set AppleScript's text item delimiters to {"><"}
@@ -61,9 +60,9 @@ on getModelInfo(serialList)
 			end if
 		end repeat
 		tell application "Mactracker" to «event aevtopmw» given «class name»:configCode -- opens Mactracker window that matches configCode
-		checkMactracker(configCode) -- TODO store data from checkMactracker handle in modelListData
-		set modNum to result
-		set modelListData to modelListData & serialNumber & ": " & modNum & ": " & configCode & return
+		checkMactracker(configCode)
+		set MactrackResult to result
+		set modelListData to modelListData & serialNumber & ": " & MactrackResult & ": " & configCode & return
 		set a to a + 1
 		set progress completed steps to a
 	end repeat
@@ -72,14 +71,13 @@ on getModelInfo(serialList)
 	set progress completed steps to 0
 	set progress description to ""
 	set progress additional description to ""
-	log modelListData
 	return modelListData
 end getModelInfo
 
 on writeDataToFile(modelListData)
 	tell application "Finder" to set containerPath to (container of (path to me))
 	set modelList to (POSIX path of (containerPath as alias)) & "Results - " & (current date)
-	-- do shell script "echo  " & quoted form of modelListData & " >  " & quoted form of modelList & ";open " & quoted form of modelList -- TEMP uncomment this -- TODO write to excel instead of text file
+	do shell script "echo  " & quoted form of modelListData & " >  " & quoted form of modelList & ";open " & quoted form of modelList -- TODO write to excel instead of text file
 end writeDataToFile
 
 on checkMactracker(configCode)
@@ -87,7 +85,7 @@ on checkMactracker(configCode)
 		try
 			set mactrackerRows to get value of attribute "AXChildren" of table 1 of UI element 1 of scroll area 1 of window configCode of application process "Mactracker"
 		on error
-			delay 1
+			delay 2
 			log "Error setting mactrackerRows. Trying again..."
 			try
 				set mactrackerRows to get value of attribute "AXChildren" of table 1 of UI element 1 of scroll area 1 of window configCode of application process "Mactracker"
@@ -95,16 +93,44 @@ on checkMactracker(configCode)
 				display alert "Error!" message "unable to get rows of Mactracker window " & quoted form of configCode as warning
 			end try
 		end try -- TODO find a better way to ensure mactrackerRows gets set that doesn't just deley a set amount of time
-		set specsList to {"Model Identifier","Model Number","Order Number","Current Price","Processor","Processor Speed","Number of Cores","Storage","Built-in Memory","Built-in Display","Graphics Card","Graphics Memory"}
-		set {baseModelIdentifier,baseModelNumber,baseOrderNumber,baseCurrentPrice,baseProcessor,baseProcessorSpeed,baseNumberOfCores,baseStorage,baseBuiltInMemory,baseBuiltInDisplay,baseGraphicsCard,baseGraphicsMemory} to {"UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN","UNKNOWN"}
+		set specsList to {"Order Number"}
+		set {baseOrderNumber} to {"UNKNOWN"}
+		set tmpData to ""
+		set rowNum to 1
 		repeat with tmpRow in mactrackerRows
-			log tmpRow
-			-- TODO get data from cell 2 and set to above variables if text in cell 1 matches specsList
+			set uiElemNum to 1
+			set tmpText to ""
+			repeat 2 times
+				try
+					set tmpValue to value of static text 1 of UI element uiElemNum of row rowNum of table 1 of UI element 1 of scroll area 1 of window configCode of application process "Mactracker"
+					set tmpText to tmpText & ": " & tmpValue
+					set uiElemNum to uiElemNum + 1
+				on error
+					set tmpValue to "ERROR"
+					set tmpText to tmpText & ": " & tmpValue
+					set uiElemNum to uiElemNum + 1
+				end try
+			end repeat
+			set tmpData to TmpData & tmpText & "/ "
+			set rowNum to rowNum + 1
 		end repeat
-		get name of window configCode of application process "Mactracker"
-		--TODO close configCode mactracker window after done
-		return "-------Test"
 	end tell
+	set AppleScript's text item delimiters to {"/ "}
+	set tmpDataItems to text items of tmpData
+	set AppleScript's text item delimiters to {": "}
+	set tmpBaseSpecs to ""
+	repeat with tmpSpec in specsList
+		repeat with tmpItem in tmpDataItems
+			try
+				if text item 2 of tmpItem starts with tmpSpec then
+					set tmpBaseSpecs to tmpBaseSpecs & (text item 3 of tmpItem)
+				end if
+			on error
+			end try
+		end repeat
+	end repeat
+	set {baseOrderNumber} to {(text items of tmpBaseSpecs)}
+	return baseOrderNumber
 end checkMactracker
 
 on closeApp(applicationName)
